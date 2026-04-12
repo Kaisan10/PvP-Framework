@@ -26,16 +26,12 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
 
-    - name: Get version from pom.xml
-      id: get_version
-      run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-
-    - name: Create or Update Release
+    - name: Update Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ env.PROJECT_VERSION }}
-        name: Release v${{ env.PROJECT_VERSION }}
+        tag_name: Release
+        name: Latest Release
         files: target/PvPFramework-*.jar
-        overwrite: true
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
