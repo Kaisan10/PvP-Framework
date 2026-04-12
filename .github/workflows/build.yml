@@ -36,13 +36,6 @@ jobs:
         tag_name: v${{ env.PROJECT_VERSION }}
         name: Release v${{ env.PROJECT_VERSION }}
         files: target/PvPFramework-*.jar
-        allowUpdates: true
+        overwrite: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: PvPFramework-v${{ github.run_number }}
-        path: target/PvPFramework-*.jar
-        if-no-files-found: error
