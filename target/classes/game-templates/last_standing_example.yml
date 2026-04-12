@@ -1,0 +1,83 @@
+# ============================================================
+# PvP Framework — LAST_STANDING テンプレート
+# このファイルをコピーして plugins/PvPFramework/games/ に置いてください
+# または: /pvpf template copy last_standing_example <新しいゲームID>
+# ============================================================
+
+id: last_standing_example
+display-name: "サバイバル戦"
+mode: LAST_STANDING       # リスポーンなし。最後の一人が勝者。
+
+min-players: 3
+max-players: 12
+countdown: 30
+
+lobby:
+  x: 0.5
+  y: 64.0
+  z: 0.5
+
+arena:
+  spawns:
+    - x: 15.5
+      y: 65.0
+      z: 0.5
+      yaw: 270.0
+    - x: -15.5
+      y: 65.0
+      z: 0.5
+      yaw: 90.0
+    - x: 0.5
+      y: 65.0
+      z: 15.5
+      yaw: 180.0
+    - x: 0.5
+      y: 65.0
+      z: -15.5
+      yaw: 0.0
+  bounds:
+    min: {x: -50, y: 60, z: -50}
+    max: {x: 50, y: 100, z: 50}
+
+win-condition:
+  type: LAST_STANDING     # 固定: 最後の一人が勝者（変更不可）
+  time-limit: 300         # 時間切れの場合は最多キルで判定
+
+kit: warrior
+# respawn-kit は LAST_STANDING では無効
+
+combat:
+  friendly-fire: false
+  respawn: false          # LAST_STANDING では常に false（書いても無視）
+  respawn-delay: 0
+
+scoreboard:
+  title: "&6&lサバイバル"
+  update-interval: 10
+  lines:
+    - ""
+    - "&f残りプレイヤー: &a{player_count}"
+    - ""
+    - "&f残り時間: &b{time_left}"
+    - ""
+
+events:
+  on-game-start:
+    - broadcast: "&6&lサバイバル戦 開始！誰が最後まで生き残る？"
+    - play-sound: ENTITY_ENDER_DRAGON_GROWL 1.0 0.5
+
+  on-player-join:
+    - send-message: "&aゲームに参加しました！カウントダウンを待ってください。"
+
+  on-countdown:
+    - send-title: '"" "&e{countdown}..." 0 22 0'
+
+  on-kill:
+    - broadcast: "&c{victim} が脱落！ 残り {player_count} 人"
+    - send-message: "&a{victim} を倒した！"
+
+  # LAST_STANDING では on-death/respawn は設定しない
+
+  on-game-end:
+    - broadcast: '&6&l{winner} が最後まで生き残った！'
+    - send-title: '"&6WINNER!" "&7{winner}" 10 100 20'

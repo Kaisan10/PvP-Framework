@@ -1,0 +1,16 @@
+id: warrior
+
+items:
+  - IRON_SWORD 1
+  - BOW 1
+  - ARROW 32
+  - GOLDEN_APPLE 2
+
+armor:
+  helmet: IRON_HELMET
+  chestplate: IRON_CHESTPLATE
+  leggings: IRON_LEGGINGS
+  boots: IRON_BOOTS
+
+effects:
+  - SPEED 99999 0

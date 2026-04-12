@@ -1,0 +1,29 @@
+name: PvPFramework
+version: 1.0-SNAPSHOT
+main: pvp.framework.PvPFramework
+api-version: '1.21'
+description: A flexible PvP game framework
+authors: [you]
+softdepend: [Multiverse-Core, FancyNpcs]
+
+commands:
+  pvpf:
+    description: PvP Framework main command
+    usage: /pvpf <reload|join|leave|game|template|npc> [...]
+    permission: pvpf.use
+    aliases: [pvpframework]
+  pf:
+    description: PvP Framework shortcut command
+    usage: /pf j <game-id>
+    permission: pvpf.join
+
+permissions:
+  pvpf.admin:
+    description: Full access to PvPFramework commands
+    default: op
+  pvpf.join:
+    description: Allow players to join/leave game sessions
+    default: true
+  pvpf.use:
+    description: Allow running base /pvpf command (join/leave)
+    default: true
