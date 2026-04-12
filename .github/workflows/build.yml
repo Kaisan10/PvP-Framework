@@ -26,5 +26,6 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: PvPFramework-Latest
+        name: PvPFramework-v${{ github.run_number }}
         path: target/PvPFramework-*.jar
+        if-no-files-found: error
