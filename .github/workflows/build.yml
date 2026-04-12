@@ -30,12 +30,13 @@ jobs:
       id: get_version
       run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
 
-    - name: Create Release
+    - name: Create or Update Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ env.PROJECT_VERSION }}
         name: Release v${{ env.PROJECT_VERSION }}
         files: target/PvPFramework-*.jar
+        allowUpdates: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
