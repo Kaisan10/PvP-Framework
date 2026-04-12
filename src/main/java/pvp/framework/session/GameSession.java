@@ -324,7 +324,8 @@ public class GameSession {
         player.getInventory().setExtraContents(new ItemStack[1]);
     }
 
-    private void restoreInventory(Player player) {
+    // [Bug①] YamlGameSession.onReset() でスペクテイターのインベントリを復元できるよう protected に変更
+    protected void restoreInventory(Player player) {
         UUID uuid = player.getUniqueId();
         ItemStack[] contents = savedContents.remove(uuid);
         ItemStack[] armor    = savedArmor.remove(uuid);

@@ -5,7 +5,11 @@ import pvp.framework.game.GameConfig;
 import pvp.framework.script.ActionContext;
 import pvp.framework.script.ScriptEngine;
 import pvp.framework.session.GameSession;
+import pvp.framework.session.GameState;
 import pvp.framework.wincondition.WinConditionEvaluator;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -25,6 +29,10 @@ public class YamlGameSession extends GameSession {
     private final Map<UUID, Integer> deaths = new HashMap<>();
     private final Map<UUID, Integer> scores = new HashMap<>();
     private final Map<String, String> variables = new HashMap<>();
+
+    // [Bug①] LAST_STANDING: 死亡後にスペクテイターとなったプレイヤーを管理するセット
+    // players セット（生存者）とは別に保持し、getPlayerCount() は生存者のみを返す。
+    private final Set<UUID> spectators = new LinkedHashSet<>();
 
     public YamlGameSession(PvPFramework plugin,
                            String sessionId,
@@ -60,6 +68,9 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onPlayerLeave(Player player) {
+        // [Bug①] スペクテイターが退出した場合もここで除去する
+        spectators.remove(player.getUniqueId());
+
         scriptEngine.fire("on-player-leave", this, player, buildPlayerCtx(player));
         kills.remove(player.getUniqueId());
         deaths.remove(player.getUniqueId());
@@ -72,7 +83,7 @@ public class YamlGameSession extends GameSession {
         Map<String, Object> ctx = buildSessionCtx();
         ctx.put("countdown", remaining);
         for (UUID uuid : players) {
-            Player p = org.bukkit.Bukkit.getPlayer(uuid);
+            Player p = Bukkit.getPlayer(uuid);
             if (p != null) scriptEngine.fire("on-countdown", this, p, ctx);
         }
     }
@@ -82,7 +93,7 @@ public class YamlGameSession extends GameSession {
         // キット配布
         if (config.getKitId() != null) {
             for (UUID uuid : players) {
-                Player p = org.bukkit.Bukkit.getPlayer(uuid);
+                Player p = Bukkit.getPlayer(uuid);
                 if (p != null) plugin.getKitManager().give(p, config.getKitId());
             }
         }
@@ -90,7 +101,7 @@ public class YamlGameSession extends GameSession {
         // FREEPLAYは「ゲーム開始」という概念がないため on-game-start を発火しない
         if ("FREEPLAY".equals(config.getMode())) {
             for (UUID uuid : players) {
-                Player p = org.bukkit.Bukkit.getPlayer(uuid);
+                Player p = Bukkit.getPlayer(uuid);
                 if (p != null) GameSession.giveMenuCompass(p);
             }
             updateAllScoreboards();
@@ -121,13 +132,13 @@ public class YamlGameSession extends GameSession {
         if (isFreeplay()) {
             // FREEPLAY: ロビーへ（アリーナへはメニューコンパスで移動）
             if (lobby != null) {
-                org.bukkit.Location loc = lobby.toBukkitLocation();
+                Location loc = lobby.toBukkitLocation();
                 if (loc != null) player.teleport(loc);
             }
             GameSession.giveMenuCompass(player);
         } else {
             if (arena != null) {
-                org.bukkit.Location spawn = nextUniqueSpawn();
+                Location spawn = nextUniqueSpawn();
                 if (spawn != null) player.teleport(spawn);
             }
             if (config.getKitId() != null) plugin.getKitManager().give(player, config.getKitId());
@@ -153,10 +164,19 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onEnd(String reason) {
+        // [Bug①] スペクテイターのポーションエフェクトも除去する
+        for (UUID uuid : spectators) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                new ArrayList<>(p.getActivePotionEffects())
+                    .forEach(e -> p.removePotionEffect(e.getType()));
+            }
+        }
+
         Map<String, Object> ctx = buildSessionCtx();
         ctx.put("winner", reason);
         players.stream()
-            .map(uuid -> org.bukkit.Bukkit.getPlayer(uuid))
+            .map(uuid -> Bukkit.getPlayer(uuid))
             .filter(p -> p != null && p.getName().equals(reason))
             .findFirst()
             .ifPresent(p -> {
@@ -172,10 +192,42 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onReset() {
+        // [Bug①] スペクテイターをゲームモード復元・グローバルロビーへテレポートしてクリーンアップ
+        Location globalLobby = plugin.getConfigManager().getGlobalLobby();
+        for (UUID uuid : new HashSet<>(spectators)) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.setGameMode(GameMode.SURVIVAL);
+                p.getInventory().clear();
+                restoreInventory(p);  // GameSession.restoreInventory (protected)
+                plugin.getScoreboardManager().remove(p);
+                if (globalLobby != null) p.teleport(globalLobby);
+            }
+        }
+        spectators.clear();
+
         kills.clear();
         deaths.clear();
         scores.clear();
         variables.clear();
+    }
+
+    // -------------------------------------------------------
+    // スコアボード（spectators にも配信）
+    // -------------------------------------------------------
+
+    @Override
+    protected void updateAllScoreboards() {
+        // 生存プレイヤー
+        for (UUID uuid : players) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) plugin.getScoreboardManager().update(p, this);
+        }
+        // スペクテイター（観戦中も残り人数・キル等を表示）
+        for (UUID uuid : spectators) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) plugin.getScoreboardManager().update(p, this);
+        }
     }
 
     // -------------------------------------------------------
@@ -192,6 +244,11 @@ public class YamlGameSession extends GameSession {
         Map<String, Object> victimCtx = buildPlayerCtx(victim);
         victimCtx.put("killer", killer.getName());
         scriptEngine.fire("on-death", this, victim, victimCtx);
+
+        // [Bug①] LAST_STANDING: 死亡者をスペクテイターに移行する
+        if ("LAST_STANDING".equals(config.getMode())) {
+            makeSpectator(victim);
+        }
     }
 
     public void onPlayerDeath(Player victim) {
@@ -199,6 +256,51 @@ public class YamlGameSession extends GameSession {
         Map<String, Object> victimCtx = buildPlayerCtx(victim);
         victimCtx.put("killer", "none");
         scriptEngine.fire("on-death", this, victim, victimCtx);
+
+        // [Bug①] LAST_STANDING: 死亡者をスペクテイターに移行する
+        if ("LAST_STANDING".equals(config.getMode())) {
+            makeSpectator(victim);
+        }
+    }
+
+    /**
+     * [Bug①] プレイヤーを生存者から除外しスペクテイターとして扱う。
+     * - players から除去（getPlayerCount() が生存者数のみを返すようになる）
+     * - spectators に追加
+     * - キットをクリア、スペクテイターモードへ変更、アリーナ内にTP（観戦）
+     * - 残り1人になった場合は即座に endGame() を呼ぶ
+     */
+    private void makeSpectator(Player victim) {
+        // players から除去 → getPlayerCount() が生存者のみを返す
+        players.remove(victim.getUniqueId());
+        spectators.add(victim.getUniqueId());
+
+        // キット・エフェクトをクリア
+        victim.getInventory().clear();
+        new ArrayList<>(victim.getActivePotionEffects())
+            .forEach(e -> victim.removePotionEffect(e.getType()));
+        GameSession.removeLeaveCompass(victim);
+
+        // スペクテイターモード＆アリーナ内TPで観戦
+        victim.setGameMode(GameMode.SPECTATOR);
+        Location arenaSpawn = nextUniqueSpawn();
+        if (arenaSpawn != null) victim.teleport(arenaSpawn);
+
+        victim.sendMessage("§c§lあなたは脱落しました。スペクテイターとして観戦します。");
+
+        // スコアボードを全員に更新
+        updateAllScoreboards();
+
+        // 勝利判定（endGame の二重呼び出しは GameSession 側でガード済み）
+        if (getState() == GameState.ACTIVE) {
+            if (players.size() == 1) {
+                UUID lastUUID = players.iterator().next();
+                Player last = Bukkit.getPlayer(lastUUID);
+                endGame(last != null ? last.getName() : "???");
+            } else if (players.isEmpty()) {
+                endGame("引き分け");
+            }
+        }
     }
 
     // -------------------------------------------------------
@@ -208,7 +310,7 @@ public class YamlGameSession extends GameSession {
     // -------------------------------------------------------
     public void teleportToArena(Player player) {
         if (arena != null) {
-            org.bukkit.Location spawn = nextUniqueSpawn();
+            Location spawn = nextUniqueSpawn();
             if (spawn != null) player.teleport(spawn);
         }
         // 入場メッセージ（FREEPLAY の「ゲームに参加しました」はここで出す）

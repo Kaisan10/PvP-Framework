@@ -67,10 +67,19 @@ public class GameLoader {
         log.info("GameLoader loaded " + configs.size() + " game(s).");
     }
 
-    /** reload() は既存マップをクリアして load() を実行するだけ。 */
+    /**
+     * reload() は既存マップをクリアして load() を実行する。
+     *
+     * [Bug②] reload後、古い GameConfig への参照を持つ WAITING セッションが
+     * SessionManager に残っていると次の参加で古い設定が使われてしまう。
+     * load() 完了後に WAITING セッションを破棄し、次回 joinOrQueue() で
+     * 新しい GameConfig を持つセッションが生成されるようにする。
+     */
     public void reload() {
         log.info("GameLoader reloading...");
         load();
+        // reload後はWAITINGセッション（古いconfigを参照）を破棄する
+        plugin.getSessionManager().invalidateWaitingSessions(configs.keySet());
     }
 
     // -------------------------------------------------------

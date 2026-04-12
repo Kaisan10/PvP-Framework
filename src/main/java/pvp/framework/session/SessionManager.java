@@ -88,6 +88,33 @@ public class SessionManager {
         log.info("Session reset: " + session.getSessionId());
     }
 
+    /**
+     * [Bug②] /pvpf reload 後に呼ばれ、指定された gameId の WAITING セッションを破棄する。
+     *
+     * reload() で GameLoader の configs は新しい GameConfig に更新されるが、
+     * SessionManager に残っている WAITING セッションはリロード前の古い GameConfig への
+     * 参照を保持したままになる。そのため次の joinOrQueue() で古い設定が使われてしまう。
+     * このメソッドでWAITINGセッションを破棄することで、次回の参加時に
+     * 新しい GameConfig を持つセッションが自動生成されるようにする。
+     *
+     * @param gameIds 破棄対象の gameId セット（reload後の configs.keySet()）
+     */
+    public void invalidateWaitingSessions(Set<String> gameIds) {
+        List<String> toRemove = new ArrayList<>();
+        for (Map.Entry<String, GameSession> entry : sessions.entrySet()) {
+            GameSession s = entry.getValue();
+            if (s.getState() == GameState.WAITING && gameIds.contains(s.getGameId())) {
+                toRemove.add(entry.getKey());
+            }
+        }
+        for (String id : toRemove) {
+            // WAITINGセッションにはプレイヤーがいないはずだが念のりprayerSession側もクリア
+            playerSession.entrySet().removeIf(e -> e.getValue().equals(id));
+            sessions.remove(id);
+            log.info("Invalidated WAITING session on reload: " + id);
+        }
+    }
+
     public boolean joinOrQueue(Player player, String gameId) {
         if (playerSession.containsKey(player.getUniqueId())) {
             String currentId = playerSession.get(player.getUniqueId());

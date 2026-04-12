@@ -31,6 +31,11 @@ public class ScoreboardManager {
         Scoreboard board = getOrCreateBoard(player);
         Objective obj = getOrCreateObjective(board, session.getConfig().getScoreboardTitle());
 
+        // [Bug③] 前のゲームや行数変更による残留データを防ぐため、
+        // Teamをすべてunregisterしてからエントリをリセットし、再構築する。
+        for (Team team : new HashSet<>(board.getTeams())) {
+            team.unregister();
+        }
         for (String entry : new HashSet<>(board.getEntries())) {
             board.resetScores(entry);
         }
