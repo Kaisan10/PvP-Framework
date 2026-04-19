@@ -1,6 +1,7 @@
 package pvp.framework.gui;
 
 import pvp.framework.PvPFramework;
+import pvp.framework.i18n.MessageManager;
 import pvp.framework.session.GameSession;
 import pvp.framework.session.GameState;
 import net.kyori.adventure.text.Component;
@@ -25,7 +26,6 @@ import java.util.List;
  */
 public class LobbyMenuListener implements Listener {
 
-    private static final Component MENU_TITLE = colorize("&b&lゲームメニュー");
     private static final NamespacedKey COMPASS_KEY =
             new NamespacedKey("pvpframework", "lobby_menu");
 
@@ -35,10 +35,16 @@ public class LobbyMenuListener implements Listener {
         this.plugin = plugin;
     }
 
+    private MessageManager mm() { return plugin.getMessageManager(); }
+
+    private Component menuTitle() {
+        return colorize(mm().get("gui.game-menu-title"));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
-        if (!e.getView().title().equals(MENU_TITLE)) return;
+        if (!e.getView().title().equals(menuTitle())) return;
 
         e.setCancelled(true);
 
@@ -48,31 +54,38 @@ public class LobbyMenuListener implements Listener {
         if (slot == 0) {
             player.closeInventory();
             plugin.getSessionManager().leaveSession(player);
-            player.sendMessage(colorize("&b[PvPF] &aゲームから退出しました。"));
+            player.sendMessage(colorize(mm().getPrefixed("command.leave.left")));
         }
     }
 
     public void openMenu(Player player, GameSession session) {
-        Inventory inv = Bukkit.createInventory(null, 9, MENU_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 9, menuTitle());
 
         ItemStack leave = new ItemStack(Material.RED_BED);
         ItemMeta leaveMeta = leave.getItemMeta();
-        leaveMeta.displayName(colorize("&c&lゲームを退出"));
-        leaveMeta.lore(List.of(colorize("&7クリックしてロビーに戻る")));
+        leaveMeta.displayName(colorize(mm().get("gui.lobby-leave-name")));
+        leaveMeta.lore(List.of(colorize(mm().get("gui.lobby-leave-lore"))));
         leave.setItemMeta(leaveMeta);
         inv.setItem(0, leave);
 
         int waiting = session.getMinPlayers() - session.getPlayerCount();
-        String status = session.getState() == GameState.COUNTDOWN
-                ? "&eカウントダウン中"
-                : (waiting > 0 ? "&7あと &f" + waiting + "人 &7で開始" : "&a開始待ち");
+        String status;
+        if (session.getState() == GameState.COUNTDOWN) {
+            status = mm().get("gui.lobby-status-countdown");
+        } else if (waiting > 0) {
+            status = mm().get("gui.lobby-status-waiting", "count", String.valueOf(waiting));
+        } else {
+            status = mm().get("gui.lobby-status-ready");
+        }
 
         ItemStack info = new ItemStack(Material.PAPER);
         ItemMeta infoMeta = info.getItemMeta();
         infoMeta.displayName(colorize("&e&l" + session.getGameId()));
         infoMeta.lore(List.of(
-                colorize("&7参加者: &f" + session.getPlayerCount() + " / " + session.getMaxPlayers() + "人"),
-                colorize("&7状態: " + status),
+                colorize(mm().get("gui.lobby-info-lore-players",
+                        "current", String.valueOf(session.getPlayerCount()),
+                        "max",     String.valueOf(session.getMaxPlayers()))),
+                colorize(mm().get("gui.lobby-info-lore-state", "status", status)),
                 colorize("&8" + session.getSessionId())
         ));
         info.setItemMeta(infoMeta);

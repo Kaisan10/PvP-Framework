@@ -2,6 +2,7 @@ package pvp.framework.command;
 
 import pvp.framework.PvPFramework;
 import pvp.framework.game.GameConfig;
+import pvp.framework.i18n.MessageManager;
 import pvp.framework.mode.YamlGameSession;
 import pvp.framework.session.GameSession;
 import pvp.framework.session.GameState;
@@ -25,12 +26,13 @@ import java.util.stream.Collectors;
  */
 public class PvpfCommand implements CommandExecutor, TabCompleter {
 
-    private static final String PREFIX = "§b[PvPF] §r";
     private final PvPFramework plugin;
 
     public PvpfCommand(PvPFramework plugin) {
         this.plugin = plugin;
     }
+
+    private MessageManager mm() { return plugin.getMessageManager(); }
 
     // -------------------------------------------------------
     // onCommand
@@ -55,7 +57,7 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
     private boolean requireAdmin(CommandSender sender) {
         if (!sender.hasPermission("pvpf.admin")) {
-            sender.sendMessage(PREFIX + "§c権限がありません。");
+            sender.sendMessage(mm().getPrefixed("command.no-permission"));
             return false;
         }
         return true;
@@ -70,12 +72,12 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
         // コマンドブロック / コンソール
         if (!(sender instanceof Player)) {
             if (args.length < 3) {
-                sender.sendMessage(PREFIX + "§7コマンドブロック用: /pvpf join <プレイヤー名> <ゲームID>");
+                sender.sendMessage(mm().getPrefixed("command.join.cb-usage"));
                 return true;
             }
             Player target = Bukkit.getPlayerExact(args[1]);
             if (target == null) {
-                sender.sendMessage(PREFIX + "§cプレイヤーが見つかりません: " + args[1]);
+                sender.sendMessage(mm().getPrefixed("command.join.cb-player-not-found", "player", args[1]));
                 return true;
             }
             plugin.getSessionManager().joinOrQueue(target, args[2]);
@@ -85,14 +87,14 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
         // プレイヤー
         Player player = (Player) sender;
         if (!player.hasPermission("pvpf.join") && !player.hasPermission("pvpf.admin")) {
-            player.sendMessage(PREFIX + "§c権限がありません。");
+            player.sendMessage(mm().getPrefixed("command.no-permission"));
             return true;
         }
         if (args.length < 2) {
-            player.sendMessage(PREFIX + "使い方: /pvpf join <game-id>");
+            player.sendMessage(mm().getPrefixed("command.join.usage"));
             Map<String, GameConfig> games = plugin.getGameLoader().getAll();
             if (!games.isEmpty()) {
-                player.sendMessage(PREFIX + "§e参加可能なゲーム:");
+                player.sendMessage(mm().getPrefixed("command.join.available-header"));
                 for (var cfg : games.values()) {
                     player.sendMessage("  §7- §f" + cfg.getGameId()
                             + " §7[" + cfg.getMode() + "] " + cfg.getDisplayName());
@@ -119,10 +121,10 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
     private void sendJoinMessage(Player player, String gameId) {
         GameConfig cfg = plugin.getGameLoader().getConfig(gameId);
         if (cfg != null && "FREEPLAY".equals(cfg.getMode())) {
-            player.sendMessage(PREFIX + "§a§f" + cfg.getDisplayName() + " §aの待機場所に参加しました！");
-            player.sendMessage(PREFIX + "§7コンパスを右クリックしてアリーナへ入場できます。");
+            player.sendMessage(mm().getPrefixed("command.join.success-freeplay", "displayName", cfg.getDisplayName()));
+            player.sendMessage(mm().getPrefixed("command.join.success-freeplay-hint"));
         } else {
-            player.sendMessage(PREFIX + "§a§f" + gameId + " §aに参加しました！");
+            player.sendMessage(mm().getPrefixed("command.join.success", "gameId", gameId));
         }
     }
 
@@ -141,13 +143,13 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleLeave(CommandSender sender) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(PREFIX + "§cプレイヤーのみ使用できます。");
+            sender.sendMessage(mm().getPrefixed("command.leave.player-only"));
             return true;
         }
 
         GameSession session = plugin.getSessionManager().getSessionByPlayer(player);
         if (session == null) {
-            player.sendMessage(PREFIX + "§c現在ゲームに参加していません。");
+            player.sendMessage(mm().getPrefixed("command.leave.not-in-game"));
             return true;
         }
 
@@ -155,11 +157,11 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
         if (session.getState() == GameState.ACTIVE && session.isPlayerInArena(player)) {
             // アリーナ → 待機場所へ（セッション維持）
             returnToGameLobby(player, session);
-            player.sendMessage(PREFIX + "§a待機場所に戻りました。もう一度 §f/pvpf leave §aでロビーへ退出できます。");
+            player.sendMessage(mm().getPrefixed("command.leave.returned-to-game-lobby"));
         } else {
             // 待機場所 or WAITING/COUNTDOWN → グローバルロビーへ（セッション退出）
             plugin.getSessionManager().leaveSession(player);
-            player.sendMessage(PREFIX + "§aゲームから退出しました。");
+            player.sendMessage(mm().getPrefixed("command.leave.left"));
         }
         return true;
     }
@@ -188,15 +190,16 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
     // -------------------------------------------------------
     private boolean handleReload(CommandSender sender) {
         if (!sender.hasPermission("pvpf.admin")) return true;
-        sender.sendMessage(PREFIX + "リロード中...");
+        sender.sendMessage(mm().getPrefixed("command.reload.start"));
         plugin.getConfigManager().load();
+        plugin.getMessageManager().reload();
         plugin.getKitManager().load();
         plugin.getArenaManager().reload();
         plugin.getGameLoader().reload();
-        sender.sendMessage(PREFIX + "§aリロード完了。"
-                + " kits=" + plugin.getKitManager().getKits().size()
-                + " arenas=" + plugin.getArenaManager().getArenas().size()
-                + " games=" + plugin.getGameLoader().getAll().size());
+        sender.sendMessage(mm().getPrefixed("command.reload.done",
+                "kits",   String.valueOf(plugin.getKitManager().getKits().size()),
+                "arenas", String.valueOf(plugin.getArenaManager().getArenas().size()),
+                "games",  String.valueOf(plugin.getGameLoader().getAll().size())));
         return true;
     }
 
@@ -206,7 +209,7 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
     private boolean handleGame(CommandSender sender, String[] args) {
         if (!sender.hasPermission("pvpf.admin")) return true;
         if (args.length < 2) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf game <list|start|stop|status>");
+            sender.sendMessage(mm().getPrefixed("command.game.usage"));
             return true;
         }
         return switch (args[1].toLowerCase()) {
@@ -214,19 +217,19 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
             case "start"  -> handleGameStart(sender, args);
             case "stop"   -> handleGameStop(sender, args);
             case "status" -> handleGameStatus(sender, args);
-            default       -> { sender.sendMessage(PREFIX + "不明なサブコマンド: " + args[1]); yield true; }
+            default       -> { sender.sendMessage(mm().getPrefixed("command.game.unknown-sub", "sub", args[1])); yield true; }
         };
     }
 
     private boolean handleGameList(CommandSender sender) {
         Map<String, GameConfig> games = plugin.getGameLoader().getAll();
-        sender.sendMessage(PREFIX + "§e登録済みゲーム (" + games.size() + "):");
+        sender.sendMessage(mm().getPrefixed("command.game.list.header-games", "count", String.valueOf(games.size())));
         for (GameConfig cfg : games.values()) {
             sender.sendMessage("  §7- §f" + cfg.getGameId()
                     + " §7[" + cfg.getMode() + "] " + cfg.getDisplayName());
         }
         Map<String, GameSession> sessions = plugin.getSessionManager().getSessions();
-        sender.sendMessage(PREFIX + "§e実行中セッション (" + sessions.size() + "):");
+        sender.sendMessage(mm().getPrefixed("command.game.list.header-sessions", "count", String.valueOf(sessions.size())));
         for (GameSession s : sessions.values()) {
             sender.sendMessage("  §7- §f" + s.getSessionId()
                     + " §7[" + s.getState() + "] players=" + s.getPlayerCount());
@@ -236,13 +239,13 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleGameStart(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf game start <game-id>");
+            sender.sendMessage(mm().getPrefixed("command.game.start.usage"));
             return true;
         }
         String gameId = args[2];
         GameConfig cfg = plugin.getGameLoader().getConfig(gameId);
         if (cfg == null) {
-            sender.sendMessage(PREFIX + "§cゲームが見つかりません: " + gameId);
+            sender.sendMessage(mm().getPrefixed("command.game.start.not-found", "gameId", gameId));
             return true;
         }
         boolean alreadyExists = plugin.getSessionManager().getSessions().values().stream()
@@ -250,49 +253,49 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
                         && (s.getState() == GameState.WAITING
                             || s.getState() == GameState.COUNTDOWN));
         if (alreadyExists) {
-            sender.sendMessage(PREFIX + "§c" + gameId + " の待機中セッションが既に存在します。");
+            sender.sendMessage(mm().getPrefixed("command.game.start.already-exists", "gameId", gameId));
             return true;
         }
         String sessionId = gameId + "-" + (System.currentTimeMillis() % 100000);
         YamlGameSession session = plugin.getModeEngine().createSession(plugin, sessionId, cfg);
         plugin.getSessionManager().registerSession(session);
-        sender.sendMessage(PREFIX + "§aセッション開始: §f" + sessionId);
-        sender.sendMessage(PREFIX + "§7参加: §f/pvpf join " + gameId);
+        sender.sendMessage(mm().getPrefixed("command.game.start.success", "sessionId", sessionId));
+        sender.sendMessage(mm().getPrefixed("command.game.start.hint", "gameId", gameId));
         return true;
     }
 
     private boolean handleGameStop(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf game stop <session-id>");
+            sender.sendMessage(mm().getPrefixed("command.game.stop.usage"));
             return true;
         }
         GameSession session = plugin.getSessionManager().getSession(args[2]);
         if (session == null) {
-            sender.sendMessage(PREFIX + "§cセッションが見つかりません: " + args[2]);
+            sender.sendMessage(mm().getPrefixed("command.game.stop.not-found", "sessionId", args[2]));
             return true;
         }
-        session.endGame("管理者による強制終了");
-        sender.sendMessage(PREFIX + "§aセッションを終了しました: " + args[2]);
+        session.endGame(mm().get("command.game.stop.force-reason"));
+        sender.sendMessage(mm().getPrefixed("command.game.stop.success", "sessionId", args[2]));
         return true;
     }
 
     private boolean handleGameStatus(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf game status <session-id>");
+            sender.sendMessage(mm().getPrefixed("command.game.status.usage"));
             return true;
         }
         GameSession session = plugin.getSessionManager().getSession(args[2]);
         if (session == null) {
-            sender.sendMessage(PREFIX + "§cセッションが見つかりません: " + args[2]);
+            sender.sendMessage(mm().getPrefixed("command.game.status.not-found", "sessionId", args[2]));
             return true;
         }
-        sender.sendMessage(PREFIX + "§eセッション: " + args[2]);
-        sender.sendMessage("  状態: §f" + session.getState());
-        sender.sendMessage("  ゲームID: §f" + session.getGameId());
-        sender.sendMessage("  プレイヤー数: §f" + session.getPlayerCount());
-        sender.sendMessage("  経過時間: §f" + session.getTimeElapsed() + "秒");
+        sender.sendMessage(mm().getPrefixed("command.game.status.header", "sessionId", args[2]));
+        sender.sendMessage(mm().get("command.game.status.line-state", "state", session.getState().toString()));
+        sender.sendMessage(mm().get("command.game.status.line-game-id", "gameId", session.getGameId()));
+        sender.sendMessage(mm().get("command.game.status.line-player-count", "count", String.valueOf(session.getPlayerCount())));
+        sender.sendMessage(mm().get("command.game.status.line-elapsed", "elapsed", String.valueOf(session.getTimeElapsed())));
         if (session instanceof YamlGameSession ys) {
-            sender.sendMessage("  モード: §f" + ys.getConfig().getMode());
+            sender.sendMessage(mm().get("command.game.status.line-mode", "mode", ys.getConfig().getMode()));
         }
         return true;
     }
@@ -303,23 +306,23 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
     private boolean handleTemplate(CommandSender sender, String[] args) {
         if (!sender.hasPermission("pvpf.admin")) return true;
         if (args.length < 2) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf template <list|copy>");
+            sender.sendMessage(mm().getPrefixed("command.template.usage"));
             return true;
         }
         return switch (args[1].toLowerCase()) {
             case "list" -> handleTemplateList(sender);
             case "copy" -> handleTemplateCopy(sender, args);
-            default     -> { sender.sendMessage(PREFIX + "不明なサブコマンド: " + args[1]); yield true; }
+            default     -> { sender.sendMessage(mm().getPrefixed("command.template.unknown-sub", "sub", args[1])); yield true; }
         };
     }
 
     private boolean handleTemplateList(CommandSender sender) {
         List<String> templates = plugin.getTemplateManager().listTemplates();
         if (templates.isEmpty()) {
-            sender.sendMessage(PREFIX + "§cテンプレートが見つかりません。");
+            sender.sendMessage(mm().getPrefixed("command.template.list.empty"));
             return true;
         }
-        sender.sendMessage(PREFIX + "§eテンプレート一覧 (" + templates.size() + "):");
+        sender.sendMessage(mm().getPrefixed("command.template.list.header", "count", String.valueOf(templates.size())));
         for (String name : templates) {
             sender.sendMessage("  §7- §f" + name + " §7→ /pvpf template copy " + name + " <new-id>");
         }
@@ -328,24 +331,24 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleTemplateCopy(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf template copy <template-name> <new-game-id>");
+            sender.sendMessage(mm().getPrefixed("command.template.copy.usage"));
             return true;
         }
         String newGameId = args[3];
         if (!newGameId.matches("[a-zA-Z0-9_\\-]+")) {
-            sender.sendMessage(PREFIX + "§cゲームIDには英数字・_・- のみ使用できます。");
+            sender.sendMessage(mm().getPrefixed("command.template.copy.invalid-id"));
             return true;
         }
         if (plugin.getTemplateManager().gameFileExists(newGameId)) {
-            sender.sendMessage(PREFIX + "§cgames/" + newGameId + ".yml はすでに存在します。");
+            sender.sendMessage(mm().getPrefixed("command.template.copy.already-exists", "gameId", newGameId));
             return true;
         }
         boolean ok = plugin.getTemplateManager().copyTemplate(args[2], newGameId);
         if (ok) {
-            sender.sendMessage(PREFIX + "§a作成しました: §fgames/" + newGameId + ".yml");
-            sender.sendMessage(PREFIX + "§7編集後 §f/pvpf reload §7で読み込んでください。");
+            sender.sendMessage(mm().getPrefixed("command.template.copy.success", "gameId", newGameId));
+            sender.sendMessage(mm().getPrefixed("command.template.copy.hint"));
         } else {
-            sender.sendMessage(PREFIX + "§cコピーに失敗しました。§f/pvpf template list §cでテンプレート名を確認してください。");
+            sender.sendMessage(mm().getPrefixed("command.template.copy.failed"));
         }
         return true;
     }
@@ -361,12 +364,12 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("pvpf.admin")) return true;
 
         if (!plugin.getFancyNpcManager().isFancyNpcsAvailable()) {
-            sender.sendMessage(PREFIX + "§cFancyNpcs がサーバーに導入されていません。");
+            sender.sendMessage(mm().getPrefixed("command.npc.no-plugin"));
             return true;
         }
 
         if (args.length < 2) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf npc <create|createlobby|delete|teleport>");
+            sender.sendMessage(mm().getPrefixed("command.npc.usage"));
             return true;
         }
 
@@ -376,8 +379,8 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
             case "delete"      -> handleNpcDelete(sender, args);
             case "teleport"    -> handleNpcTeleport(sender, args);
             default            -> {
-                sender.sendMessage(PREFIX + "不明なサブコマンド: " + args[1]);
-                sender.sendMessage(PREFIX + "使い方: /pvpf npc <create|createlobby|delete|teleport>");
+                sender.sendMessage(mm().getPrefixed("command.npc.unknown-sub", "sub", args[1]));
+                sender.sendMessage(mm().getPrefixed("command.npc.usage"));
                 yield true;
             }
         };
@@ -385,11 +388,11 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleNpcCreate(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(PREFIX + "§cプレイヤーのみ使用できます（座標が必要なため）。");
+            sender.sendMessage(mm().getPrefixed("command.npc.player-only"));
             return true;
         }
         if (args.length < 4) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf npc create <name> <game-id>");
+            sender.sendMessage(mm().getPrefixed("command.npc.create.usage"));
             return true;
         }
 
@@ -398,26 +401,26 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
         // [要望] NPC名は日本語含む任意の文字列を許可。空文字のみ弾く。
         if (name.isBlank()) {
-            sender.sendMessage(PREFIX + "§cNPC名を指定してください。");
+            sender.sendMessage(mm().getPrefixed("command.npc.name-empty"));
             return true;
         }
 
         boolean ok = plugin.getFancyNpcManager().createNpc(name, gameId, player, null);
         if (ok) {
-            sender.sendMessage(PREFIX + "§aNPC §f" + name + " §aを作成しました。");
-            sender.sendMessage(PREFIX + "§aゲーム §f" + gameId + " §aにリンク済みです。");
-            sender.sendMessage(PREFIX + "§7スキン・装備の変更は §f/npc skin <uid> <name|url> §7を使ってください。");
+            sender.sendMessage(mm().getPrefixed("command.npc.create.success", "name", name));
+            sender.sendMessage(mm().getPrefixed("command.npc.create.linked", "gameId", gameId));
+            sender.sendMessage(mm().getPrefixed("command.npc.create.hint"));
         }
         return true;
     }
 
     private boolean handleNpcCreateLobby(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(PREFIX + "§cプレイヤーのみ使用できます（座標が必要なため）。");
+            sender.sendMessage(mm().getPrefixed("command.npc.player-only"));
             return true;
         }
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf npc createlobby <name>");
+            sender.sendMessage(mm().getPrefixed("command.npc.createlobby.usage"));
             return true;
         }
 
@@ -425,49 +428,49 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
 
         // [要望] NPC名は日本語含む任意の文字列を許可。空文字のみ弾く。
         if (name.isBlank()) {
-            sender.sendMessage(PREFIX + "§cNPC名を指定してください。");
+            sender.sendMessage(mm().getPrefixed("command.npc.name-empty"));
             return true;
         }
 
         boolean ok = plugin.getFancyNpcManager().createLobbyNpc(name, player, null);
         if (ok) {
-            sender.sendMessage(PREFIX + "§aロビー返還NPC §f" + name + " §aを作成しました。");
-            sender.sendMessage(PREFIX + "§7クリックすると §fglobal-lobby §7へテレポートします。");
+            sender.sendMessage(mm().getPrefixed("command.npc.createlobby.success", "name", name));
+            sender.sendMessage(mm().getPrefixed("command.npc.createlobby.hint"));
         }
         return true;
     }
 
     private boolean handleNpcDelete(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf npc delete <name>");
+            sender.sendMessage(mm().getPrefixed("command.npc.delete.usage"));
             return true;
         }
         // 名前にスペースが含まれる場合（クォートなし）は args[2] 以降を結合
         String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
         boolean ok = plugin.getFancyNpcManager().deleteNpc(name);
         if (ok) {
-            sender.sendMessage(PREFIX + "§aNPC §f" + name + " §aを削除しました（同名が複数ある場合は最も古いものを削除）。");
+            sender.sendMessage(mm().getPrefixed("command.npc.delete.success", "name", name));
         } else {
-            sender.sendMessage(PREFIX + "§cNPC §f" + name + " §cが見つかりません。");
+            sender.sendMessage(mm().getPrefixed("command.npc.delete.not-found", "name", name));
         }
         return true;
     }
 
     private boolean handleNpcTeleport(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(PREFIX + "§cプレイヤーのみ使用できます。");
+            sender.sendMessage(mm().getPrefixed("command.npc.player-only"));
             return true;
         }
         if (args.length < 3) {
-            sender.sendMessage(PREFIX + "使い方: /pvpf npc teleport <name>");
+            sender.sendMessage(mm().getPrefixed("command.npc.teleport.usage"));
             return true;
         }
         String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
         boolean ok = plugin.getFancyNpcManager().teleportToNpc(name, player);
         if (ok) {
-            sender.sendMessage(PREFIX + "§aNPC §f" + name + " §aの場所にテレポートしました。");
+            sender.sendMessage(mm().getPrefixed("command.npc.teleport.success", "name", name));
         } else {
-            sender.sendMessage(PREFIX + "§cNPC §f" + name + " §cが見つかりません。");
+            sender.sendMessage(mm().getPrefixed("command.npc.teleport.not-found", "name", name));
         }
         return true;
     }
@@ -544,22 +547,22 @@ public class PvpfCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(PREFIX + "§eコマンド一覧:");
-        sender.sendMessage("  §f/pvpf join <game-id> §7- ゲームに参加");
-        sender.sendMessage("  §f/pvpf leave §7- ゲームから退出（アリーナ→待機場所→ロビーの2段階）");
+        sender.sendMessage(mm().getPrefixed("command.help.header"));
+        sender.sendMessage(mm().get("command.help.join"));
+        sender.sendMessage(mm().get("command.help.leave"));
         if (sender.hasPermission("pvpf.admin")) {
-            sender.sendMessage("  §f/pvpf reload §7- 設定ファイルをリロード");
-            sender.sendMessage("  §f/pvpf game list §7- ゲーム・セッション一覧");
-            sender.sendMessage("  §f/pvpf game start <id> §7- ゲーム開始");
-            sender.sendMessage("  §f/pvpf game stop <session> §7- セッション強制終了");
-            sender.sendMessage("  §f/pvpf game status <session> §7- セッション詳細");
-            sender.sendMessage("  §f/pvpf template list §7- テンプレート一覧");
-            sender.sendMessage("  §f/pvpf template copy <tmpl> <id> §7- テンプレートをコピー");
-            sender.sendMessage("  §f/pvpf npc create <name> <game-id> §7- ゲーム参加NPCを作成（日本語名OK、重複OK）");
-            sender.sendMessage("  §f/pvpf npc createlobby <name> §7- ロビー返還NPCを作成");
-            sender.sendMessage("  §f/pvpf npc delete <name> §7- NPCを削除（同名複数の場合は最古を削除）");
-            sender.sendMessage("  §f/pvpf npc teleport <name> §7- NPCの場所へテレポート");
-            sender.sendMessage("  §7※スキン等の詳細設定は §f/npc §7コマンドを使用してください。");
+            sender.sendMessage(mm().get("command.help.reload"));
+            sender.sendMessage(mm().get("command.help.game-list"));
+            sender.sendMessage(mm().get("command.help.game-start"));
+            sender.sendMessage(mm().get("command.help.game-stop"));
+            sender.sendMessage(mm().get("command.help.game-status"));
+            sender.sendMessage(mm().get("command.help.template-list"));
+            sender.sendMessage(mm().get("command.help.template-copy"));
+            sender.sendMessage(mm().get("command.help.npc-create"));
+            sender.sendMessage(mm().get("command.help.npc-createlobby"));
+            sender.sendMessage(mm().get("command.help.npc-delete"));
+            sender.sendMessage(mm().get("command.help.npc-teleport"));
+            sender.sendMessage(mm().get("command.help.npc-note"));
         }
     }
 }

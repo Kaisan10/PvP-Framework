@@ -8,15 +8,16 @@ import pvp.framework.session.GameSession;
 import pvp.framework.session.GameState;
 import pvp.framework.wincondition.WinConditionEvaluator;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 
 import java.util.*;
 
-/**
- * games/*.yml 1ファイルで動くセッション。
- */
 public class YamlGameSession extends GameSession {
 
     private static final String PREFIX = "§b[PvPF] §r";
@@ -30,9 +31,11 @@ public class YamlGameSession extends GameSession {
     private final Map<UUID, Integer> scores = new HashMap<>();
     private final Map<String, String> variables = new HashMap<>();
 
-    // [Bug①] LAST_STANDING: 死亡後にスペクテイターとなったプレイヤーを管理するセット
-    // players セット（生存者）とは別に保持し、getPlayerCount() は生存者のみを返す。
+    // [Fix Bug①] LAST_STANDING: 死亡後スペクテイターになったプレイヤー（players から除去済み）
     private final Set<UUID> spectators = new LinkedHashSet<>();
+
+    // [Fix TDM] チーム割り当て: UUID → "RED" | "BLUE"
+    private final Map<UUID, String> teamMap = new HashMap<>();
 
     public YamlGameSession(PvPFramework plugin,
                            String sessionId,
@@ -68,7 +71,7 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onPlayerLeave(Player player) {
-        // [Bug①] スペクテイターが退出した場合もここで除去する
+        // スペクテイターが退出した場合もここで除去
         spectators.remove(player.getUniqueId());
 
         scriptEngine.fire("on-player-leave", this, player, buildPlayerCtx(player));
@@ -98,7 +101,6 @@ public class YamlGameSession extends GameSession {
             }
         }
 
-        // FREEPLAYは「ゲーム開始」という概念がないため on-game-start を発火しない
         if ("FREEPLAY".equals(config.getMode())) {
             for (UUID uuid : players) {
                 Player p = Bukkit.getPlayer(uuid);
@@ -108,7 +110,15 @@ public class YamlGameSession extends GameSession {
             return;
         }
 
-        // 通常モード
+        // [Fix TDM] チーム割り当てと革ヘルメット配布（キット配布の後に行うことでヘルメットを上書き）
+        if ("TDM".equals(config.getMode())) {
+            assignTeams();
+            for (UUID uuid : players) {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null) giveTeamHelmet(p);
+            }
+        }
+
         scriptEngine.fire("on-game-start", this, null, buildSessionCtx());
         updateAllScoreboards();
     }
@@ -130,7 +140,6 @@ public class YamlGameSession extends GameSession {
         scores.put(player.getUniqueId(), 0);
 
         if (isFreeplay()) {
-            // FREEPLAY: ロビーへ（アリーナへはメニューコンパスで移動）
             if (lobby != null) {
                 Location loc = lobby.toBukkitLocation();
                 if (loc != null) player.teleport(loc);
@@ -164,7 +173,7 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onEnd(String reason) {
-        // [Bug①] スペクテイターのポーションエフェクトも除去する
+        // スペクテイターのポーションエフェクトも除去
         for (UUID uuid : spectators) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
@@ -192,19 +201,20 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void onReset() {
-        // [Bug①] スペクテイターをゲームモード復元・グローバルロビーへテレポートしてクリーンアップ
+        // スペクテイターをSURVIVALに戻してグローバルロビーへ
         Location globalLobby = plugin.getConfigManager().getGlobalLobby();
         for (UUID uuid : new HashSet<>(spectators)) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
                 p.setGameMode(GameMode.SURVIVAL);
                 p.getInventory().clear();
-                restoreInventory(p);  // GameSession.restoreInventory (protected)
+                restoreInventory(p);
                 plugin.getScoreboardManager().remove(p);
                 if (globalLobby != null) p.teleport(globalLobby);
             }
         }
         spectators.clear();
+        teamMap.clear();
 
         kills.clear();
         deaths.clear();
@@ -218,12 +228,10 @@ public class YamlGameSession extends GameSession {
 
     @Override
     protected void updateAllScoreboards() {
-        // 生存プレイヤー
         for (UUID uuid : players) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) plugin.getScoreboardManager().update(p, this);
         }
-        // スペクテイター（観戦中も残り人数・キル等を表示）
         for (UUID uuid : spectators) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) plugin.getScoreboardManager().update(p, this);
@@ -245,7 +253,6 @@ public class YamlGameSession extends GameSession {
         victimCtx.put("killer", killer.getName());
         scriptEngine.fire("on-death", this, victim, victimCtx);
 
-        // [Bug①] LAST_STANDING: 死亡者をスペクテイターに移行する
         if ("LAST_STANDING".equals(config.getMode())) {
             makeSpectator(victim);
         }
@@ -257,67 +264,94 @@ public class YamlGameSession extends GameSession {
         victimCtx.put("killer", "none");
         scriptEngine.fire("on-death", this, victim, victimCtx);
 
-        // [Bug①] LAST_STANDING: 死亡者をスペクテイターに移行する
         if ("LAST_STANDING".equals(config.getMode())) {
             makeSpectator(victim);
         }
     }
 
     /**
-     * [Bug①] プレイヤーを生存者から除外しスペクテイターとして扱う。
-     * - players から除去（getPlayerCount() が生存者数のみを返すようになる）
-     * - spectators に追加
-     * - キットをクリア、スペクテイターモードへ変更、アリーナ内にTP（観戦）
-     * - 残り1人になった場合は即座に endGame() を呼ぶ
+     * [Fix Bug①] プレイヤーを生存者から除外しスペクテイターに移行する。
+     * players から除去し、spectators に追加。
+     * 強制リスポーン後に StateValidator.onRespawn() で SPECTATOR モードが設定される。
      */
     private void makeSpectator(Player victim) {
-        // players から除去 → getPlayerCount() が生存者のみを返す
+        if (!players.contains(victim.getUniqueId())) return; // 二重呼び出し防止
+
         players.remove(victim.getUniqueId());
         spectators.add(victim.getUniqueId());
 
-        // キット・エフェクトをクリア
-        victim.getInventory().clear();
-        new ArrayList<>(victim.getActivePotionEffects())
-            .forEach(e -> victim.removePotionEffect(e.getType()));
-        GameSession.removeLeaveCompass(victim);
+        victim.sendMessage(plugin.getMessageManager().get("session.became-spectator"));
 
-        // スペクテイターモード＆アリーナ内TPで観戦
-        victim.setGameMode(GameMode.SPECTATOR);
-        Location arenaSpawn = nextUniqueSpawn();
-        if (arenaSpawn != null) victim.teleport(arenaSpawn);
+        // 死亡画面から強制リスポーン → StateValidator.onRespawn() でSPECTATORモードに切り替え
+        Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+            if (victim.isOnline() && victim.isDead()) victim.spigot().respawn();
+        }, 1L);
 
-        victim.sendMessage("§c§lあなたは脱落しました。スペクテイターとして観戦します。");
-
-        // スコアボードを全員に更新
         updateAllScoreboards();
 
-        // 勝利判定（endGame の二重呼び出しは GameSession 側でガード済み）
+        // 勝利判定
         if (getState() == GameState.ACTIVE) {
             if (players.size() == 1) {
                 UUID lastUUID = players.iterator().next();
                 Player last = Bukkit.getPlayer(lastUUID);
                 endGame(last != null ? last.getName() : "???");
             } else if (players.isEmpty()) {
-                endGame("引き分け");
+                endGame(plugin.getMessageManager().get("session.tie"));
             }
         }
     }
 
     // -------------------------------------------------------
     // アリーナ入場（FREEPLAY用）
-    // メニューGUIからアリーナへTPするときに呼ばれる。
-    // ここで入場メッセージ・on-arena-enter イベントを発火する。
     // -------------------------------------------------------
     public void teleportToArena(Player player) {
         if (arena != null) {
             Location spawn = nextUniqueSpawn();
             if (spawn != null) player.teleport(spawn);
         }
-        // 入場メッセージ（FREEPLAY の「ゲームに参加しました」はここで出す）
-        player.sendMessage(PREFIX + "§a§f" + config.getDisplayName() + " §aのアリーナに入場しました！");
-
-        // on-arena-enter スクリプトイベント
+        player.sendMessage(plugin.getMessageManager().getPrefixed("session.arena-entered", "displayName", config.getDisplayName()));
         scriptEngine.fire("on-arena-enter", this, player, buildPlayerCtx(player));
+    }
+
+    // -------------------------------------------------------
+    // [Fix TDM] チーム管理
+    // -------------------------------------------------------
+
+    /** ゲーム開始時に全プレイヤーをRED/BLUEに均等割り当て */
+    private void assignTeams() {
+        List<UUID> shuffled = new ArrayList<>(players);
+        Collections.shuffle(shuffled);
+        teamMap.clear();
+        for (int i = 0; i < shuffled.size(); i++) {
+            teamMap.put(shuffled.get(i), i % 2 == 0 ? "RED" : "BLUE");
+        }
+    }
+
+    /** チームカラーに染めた革ヘルメットを装備させる */
+    public void giveTeamHelmet(Player player) {
+        String team = teamMap.getOrDefault(player.getUniqueId(), "RED");
+        ItemStack helmet = new ItemStack(Material.LEATHER_HELMET);
+        LeatherArmorMeta meta = (LeatherArmorMeta) helmet.getItemMeta();
+        if (meta != null) {
+            // RED: 赤系、BLUE: 青系
+            meta.setColor("RED".equals(team)
+                    ? Color.fromRGB(255, 85, 85)
+                    : Color.fromRGB(85, 85, 255));
+            helmet.setItemMeta(meta);
+        }
+        player.getInventory().setHelmet(helmet);
+    }
+
+    /** 攻撃者と被攻撃者が同じチームかどうかを返す（TDMフレンドリーファイア判定用） */
+    public boolean isSameTeam(Player p1, Player p2) {
+        String t1 = teamMap.get(p1.getUniqueId());
+        String t2 = teamMap.get(p2.getUniqueId());
+        return t1 != null && t1.equals(t2);
+    }
+
+    /** プレイヤーがスペクテイター（LAST_STANDING脱落済み）かどうかを返す */
+    public boolean isSpectator(Player player) {
+        return spectators.contains(player.getUniqueId());
     }
 
     // -------------------------------------------------------
@@ -351,6 +385,15 @@ public class YamlGameSession extends GameSession {
         ctx.put("score",  getScore(uuid));
         ctx.put("player", player.getName());
         ctx.putAll(variables);
+
+        // [Fix TDM] チーム情報をスコアボードプレースホルダーとして追加
+        if ("TDM".equals(config.getMode())) {
+            String team = teamMap.getOrDefault(uuid, "");
+            ctx.put("team", team);
+            // {team_color} → スコアボードで色付き表示するための &c / &9
+            ctx.put("team_color", "RED".equals(team) ? "&cREDチーム" : "&9BLUEチーム");
+        }
+
         return ctx;
     }
 

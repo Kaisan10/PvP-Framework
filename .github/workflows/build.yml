@@ -28,13 +28,13 @@ jobs:
 
     - name: Get version from pom.xml
       id: get_version
-      run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+      run: echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
 
     - name: Update Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ env.PROJECT_VERSION }}
-        name: v${{ env.PROJECT_VERSION }}
+        tag_name: v${{ steps.get_version.outputs.PROJECT_VERSION }}
+        name: v${{ steps.get_version.outputs.PROJECT_VERSION }}
         files: target/PvPFramework-*.jar
         make_latest: true
       env:

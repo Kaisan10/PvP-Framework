@@ -41,13 +41,13 @@ public class SessionManager {
                 GameSession session = sessions.get(sessionId);
                 if (session != null) return session.addPlayer(player);
             }
-            player.sendMessage("§c既に別のゲームに参加しています。退出してから参加してください。");
+            player.sendMessage(plugin.getMessageManager().get("session.already-in-game"));
             return false;
         }
 
         GameSession session = sessions.get(sessionId);
         if (session == null) {
-            player.sendMessage("§cセッションが見つかりません: " + sessionId);
+            player.sendMessage(plugin.getMessageManager().get("session.session-not-found", "sessionId", sessionId));
             return false;
         }
 
@@ -56,7 +56,7 @@ public class SessionManager {
             playerSession.put(player.getUniqueId(), sessionId);
             log.info(player.getName() + " joined session: " + sessionId);
         } else {
-            player.sendMessage("§c参加できませんでした（満員またはゲーム中）。");
+            player.sendMessage(plugin.getMessageManager().get("session.join-failed"));
         }
         return joined;
     }
@@ -122,13 +122,13 @@ public class SessionManager {
             if (current != null && current.getGameId().equals(gameId)) {
                 return current.addPlayer(player);
             }
-            player.sendMessage("§c既に別のゲームに参加しています。退出してから参加してください。");
+            player.sendMessage(plugin.getMessageManager().get("session.already-in-game"));
             return false;
         }
 
         GameConfig cfg = plugin.getGameLoader().getConfig(gameId);
         if (cfg == null) {
-            player.sendMessage("§cゲームが見つかりません: " + gameId);
+            player.sendMessage(plugin.getMessageManager().get("command.game.start.not-found", "gameId", gameId));
             return false;
         }
 
@@ -154,7 +154,7 @@ public class SessionManager {
             log.info(player.getName() + " joined session: " + target.getSessionId()
                     + " (via queue for " + gameId + ")");
         } else {
-            player.sendMessage("§c参加できませんでした（満員またはゲーム中）。");
+            player.sendMessage(plugin.getMessageManager().get("session.join-failed"));
         }
         return joined;
     }

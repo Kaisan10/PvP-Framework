@@ -1,0 +1,159 @@
+# PvPFramework メッセージ設定 - 日本語 (ja_JP)
+# このファイルを編集することでプラグインの全メッセージを変更できます。
+# &a～&f などのカラーコードが使用できます。
+
+prefix: "§b[PvPF] §r"
+
+command:
+  no-permission: "§c権限がありません。"
+  player-only: "§cプレイヤーのみ使用できます。"
+
+  join:
+    usage: "使い方: /pvpf join <game-id>"
+    not-in-game: "§c現在ゲームに参加していません。"
+    available-header: "§e参加可能なゲーム:"
+    success: "§a§f{gameId} §aに参加しました！"
+    success-freeplay: "§a§f{displayName} §aの待機場所に参加しました！"
+    success-freeplay-hint: "§7コンパスを右クリックしてアリーナへ入場できます。"
+    cb-usage: "§7コマンドブロック用: /pvpf join <プレイヤー名> <ゲームID>"
+    cb-player-not-found: "§cプレイヤーが見つかりません: {player}"
+
+  leave:
+    not-in-game: "§c現在ゲームに参加していません。"
+    returned-to-game-lobby: "§a待機場所に戻りました。もう一度 §f/pvpf leave §aでロビーへ退出できます。"
+    left: "§aゲームから退出しました。"
+    player-only: "§cプレイヤーのみ使用できます。"
+
+  reload:
+    start: "リロード中..."
+    done: "§aリロード完了。 kits={kits} arenas={arenas} games={games}"
+
+  game:
+    usage: "使い方: /pvpf game <list|start|stop|status>"
+    unknown-sub: "不明なサブコマンド: {sub}"
+    list:
+      header-games: "§e登録済みゲーム ({count}):"
+      header-sessions: "§e実行中セッション ({count}):"
+    start:
+      usage: "使い方: /pvpf game start <game-id>"
+      not-found: "§cゲームが見つかりません: {gameId}"
+      already-exists: "§c{gameId} の待機中セッションが既に存在します。"
+      success: "§aセッション開始: §f{sessionId}"
+      hint: "§7参加: §f/pvpf join {gameId}"
+    stop:
+      usage: "使い方: /pvpf game stop <session-id>"
+      not-found: "§cセッションが見つかりません: {sessionId}"
+      success: "§aセッションを終了しました: {sessionId}"
+      force-reason: "管理者による強制終了"
+    status:
+      usage: "使い方: /pvpf game status <session-id>"
+      not-found: "§cセッションが見つかりません: {sessionId}"
+      header: "§eセッション: {sessionId}"
+      line-state: "  状態: §f{state}"
+      line-game-id: "  ゲームID: §f{gameId}"
+      line-player-count: "  プレイヤー数: §f{count}"
+      line-elapsed: "  経過時間: §f{elapsed}秒"
+      line-mode: "  モード: §f{mode}"
+
+  template:
+    usage: "使い方: /pvpf template <list|copy>"
+    unknown-sub: "不明なサブコマンド: {sub}"
+    list:
+      empty: "§cテンプレートが見つかりません。"
+      header: "§eテンプレート一覧 ({count}):"
+    copy:
+      usage: "使い方: /pvpf template copy <template-name> <new-game-id>"
+      invalid-id: "§cゲームIDには英数字・_・- のみ使用できます。"
+      already-exists: "§cgames/{gameId}.yml はすでに存在します。"
+      success: "§a作成しました: §fgames/{gameId}.yml"
+      hint: "§7編集後 §f/pvpf reload §7で読み込んでください。"
+      failed: "§cコピーに失敗しました。§f/pvpf template list §cでテンプレート名を確認してください。"
+
+  npc:
+    no-plugin: "§cFancyNpcs がサーバーに導入されていません。"
+    usage: "使い方: /pvpf npc <create|createlobby|delete|teleport>"
+    player-only: "§cプレイヤーのみ使用できます（座標が必要なため）。"
+    name-empty: "§cNPC名を指定してください。"
+    unknown-sub: "不明なサブコマンド: {sub}"
+    create:
+      usage: "使い方: /pvpf npc create <name> <game-id>"
+      success: "§aNPC §f{name} §aを作成しました。"
+      linked: "§aゲーム §f{gameId} §aにリンク済みです。"
+      hint: "§7スキン・装備の変更は §f/npc skin <uid> <name|url> §7を使ってください。"
+    createlobby:
+      usage: "使い方: /pvpf npc createlobby <name>"
+      success: "§aロビー返還NPC §f{name} §aを作成しました。"
+      hint: "§7クリックすると §fglobal-lobby §7へテレポートします。"
+    delete:
+      usage: "使い方: /pvpf npc delete <name>"
+      success: "§aNPC §f{name} §aを削除しました（同名が複数ある場合は最も古いものを削除）。"
+      not-found: "§cNPC §f{name} §cが見つかりません。"
+    teleport:
+      usage: "使い方: /pvpf npc teleport <name>"
+      success: "§aNPC §f{name} §aの場所にテレポートしました。"
+      not-found: "§cNPC §f{name} §cが見つかりません。"
+
+  help:
+    header: "§eコマンド一覧:"
+    join: "  §f/pvpf join <game-id> §7- ゲームに参加"
+    leave: "  §f/pvpf leave §7- ゲームから退出（アリーナ→待機場所→ロビーの2段階）"
+    reload: "  §f/pvpf reload §7- 設定ファイルをリロード"
+    game-list: "  §f/pvpf game list §7- ゲーム・セッション一覧"
+    game-start: "  §f/pvpf game start <id> §7- ゲーム開始"
+    game-stop: "  §f/pvpf game stop <session> §7- セッション強制終了"
+    game-status: "  §f/pvpf game status <session> §7- セッション詳細"
+    template-list: "  §f/pvpf template list §7- テンプレート一覧"
+    template-copy: "  §f/pvpf template copy <tmpl> <id> §7- テンプレートをコピー"
+    npc-create: "  §f/pvpf npc create <name> <game-id> §7- ゲーム参加NPCを作成（日本語名OK、重複OK）"
+    npc-createlobby: "  §f/pvpf npc createlobby <name> §7- ロビー返還NPCを作成"
+    npc-delete: "  §f/pvpf npc delete <name> §7- NPCを削除（同名複数の場合は最古を削除）"
+    npc-teleport: "  §f/pvpf npc teleport <name> §7- NPCの場所へテレポート"
+    npc-note: "  §7※スキン等の詳細設定は §f/npc §7コマンドを使用してください。"
+
+  pf:
+    usage: "§7使い方: §f/pf j <ゲームID>"
+    player-only: "§cプレイヤーのみ使用できます。"
+    no-permission: "§c権限がありません。"
+    no-games: "§c参加できるゲームがありません。"
+    games-header: "§e参加可能なゲーム:"
+    joined: "§a§f{gameId} §aに参加しました！"
+
+session:
+  leave-countdown-already: "§e[PvPF] 退出カウントダウン中です..."
+  leave-countdown-start: "§e[PvPF] §75秒後に待機場所へ戻ります..."
+  returned-to-lobby: "§b[PvPF] §a待機場所へ戻りました。"
+  arena-out-of-bounds: "§c[PvPF] アリーナ境界外に出たため、ゲームから除外されました。"
+  leave-cancelled: "§7[PvPF] 退出をキャンセルしました。"
+  became-spectator: "§c§lあなたは脱落しました。スペクテイターとして観戦します。"
+  arena-entered: "§a§f{displayName} §aのアリーナに入場しました！"
+  tie: "引き分け"
+  all-left: "全員退出"
+  time-up: "時間切れ"
+  already-in-game: "§c既に別のゲームに参加しています。退出してから参加してください。"
+  session-not-found: "§cセッションが見つかりません: {sessionId}"
+  join-failed: "§c参加できませんでした（満員またはゲーム中）。"
+
+gui:
+  game-menu-title: "§b§lゲームメニュー"
+  leave-confirm-title: "§c§l退出しますか？"
+  leave-yes-name: "§a§lはい"
+  leave-yes-lore: "§75秒後に待機場所へ戻ります"
+  leave-no-name: "§c§lいいえ"
+  leave-no-lore: "§7キャンセル"
+  arena-enter-lore: "§7クリックでアリーナへ入場"
+  lobby-leave-name: "§c§lゲームを退出"
+  lobby-leave-lore: "§7クリックしてロビーに戻る"
+  lobby-status-countdown: "§eカウントダウン中"
+  lobby-status-waiting: "§7あと §f{count}人 §7で開始"
+  lobby-status-ready: "§a開始待ち"
+  lobby-info-lore-players: "§7参加者: §f{current} / {max}人"
+  lobby-info-lore-state: "§7状態: {status}"
+
+item:
+  menu-compass-name: "§b§lゲームメニュー"
+  leave-compass-name: "§c§l退出"
+
+npc:
+  already-in-game: "§c既にゲームに参加中です。§f/pvpf leave §cで退出してから参加してください。"
+  no-global-lobby: "§cグローバルロビーが設定されていません。"
+  returned-to-lobby: "§aロビーへ戻りました。"

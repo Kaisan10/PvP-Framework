@@ -1,6 +1,7 @@
 package pvp.framework.command;
 
 import pvp.framework.PvPFramework;
+import pvp.framework.i18n.MessageManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,32 +19,33 @@ import java.util.stream.Collectors;
  */
 public class PfCommand implements CommandExecutor, TabCompleter {
 
-    private static final String PREFIX = "§b[PvPF] §r";
     private final PvPFramework plugin;
 
     public PfCommand(PvPFramework plugin) {
         this.plugin = plugin;
     }
 
+    private MessageManager mm() { return plugin.getMessageManager(); }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || !(args[0].equalsIgnoreCase("j") || args[0].equalsIgnoreCase("join"))) {
-            sender.sendMessage(PREFIX + "§7使い方: §f/pf j <ゲームID>");
+            sender.sendMessage(mm().getPrefixed("command.pf.usage"));
             showGameList(sender);
             return true;
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(PREFIX + "§cプレイヤーのみ使用できます。");
+            sender.sendMessage(mm().getPrefixed("command.pf.player-only"));
             return true;
         }
         if (!player.hasPermission("pvpf.join") && !player.hasPermission("pvpf.admin")) {
-            player.sendMessage(PREFIX + "§c権限がありません。");
+            player.sendMessage(mm().getPrefixed("command.pf.no-permission"));
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(PREFIX + "§7使い方: §f/pf j <ゲームID>");
+            player.sendMessage(mm().getPrefixed("command.pf.usage"));
             showGameList(sender);
             return true;
         }
@@ -51,7 +53,7 @@ public class PfCommand implements CommandExecutor, TabCompleter {
         String gameId = args[1];
         boolean joined = plugin.getSessionManager().joinOrQueue(player, gameId);
         if (joined) {
-            player.sendMessage(PREFIX + "§a§f" + gameId + " §aに参加しました！");
+            player.sendMessage(mm().getPrefixed("command.pf.joined", "gameId", gameId));
         }
         return true;
     }
@@ -74,10 +76,10 @@ public class PfCommand implements CommandExecutor, TabCompleter {
     private void showGameList(CommandSender sender) {
         var games = plugin.getGameLoader().getAll();
         if (games.isEmpty()) {
-            sender.sendMessage(PREFIX + "§c参加できるゲームがありません。");
+            sender.sendMessage(mm().getPrefixed("command.pf.no-games"));
             return;
         }
-        sender.sendMessage(PREFIX + "§e参加可能なゲーム:");
+        sender.sendMessage(mm().getPrefixed("command.pf.games-header"));
         for (var cfg : games.values()) {
             sender.sendMessage("  §7- §f" + cfg.getGameId()
                     + " §7[" + cfg.getMode() + "] " + cfg.getDisplayName());

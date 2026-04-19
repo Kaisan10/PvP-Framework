@@ -1,6 +1,7 @@
 package pvp.framework.session;
 
 import pvp.framework.PvPFramework;
+import pvp.framework.i18n.MessageManager;
 import pvp.framework.mode.YamlGameSession;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -8,7 +9,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -53,6 +56,8 @@ public class StateValidator implements Listener {
         this.plugin = plugin;
     }
 
+    private MessageManager mm() { return plugin.getMessageManager(); }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() == EquipmentSlot.OFF_HAND) return;
@@ -69,14 +74,11 @@ public class StateValidator implements Listener {
             GameSession session = plugin.getSessionManager().getSessionByPlayer(player);
             if (session == null) return;
 
-            // [FIX] FREEPLAY と通常モード（FFA/TDM/LAST_STANDING）で分岐
             if (session instanceof YamlGameSession ys
                     && "FREEPLAY".equals(ys.getConfig().getMode())) {
-                // FREEPLAY: アリーナ入場メニューを開く
                 if (session.getState() != GameState.ACTIVE) return;
                 openFreeplayMenu(player, ys);
             } else {
-                // FFA / TDM / LAST_STANDING: 通常のロビーメニューを開く
                 if (session.getState() != GameState.WAITING
                         && session.getState() != GameState.COUNTDOWN) return;
                 plugin.getLobbyMenuListener().openMenu(player, session);
@@ -87,7 +89,7 @@ public class StateValidator implements Listener {
         if (pdc.has(GameSession.LEAVE_COMPASS_KEY, PersistentDataType.BYTE)) {
             event.setCancelled(true);
             if (pendingLeaveTasks.containsKey(player.getUniqueId())) {
-                player.sendMessage(colorize("&e[PvPF] 退出カウントダウン中です..."));
+                player.sendMessage(colorize(mm().get("session.leave-countdown-already")));
                 return;
             }
             openLeaveConfirmMenu(player);
@@ -102,7 +104,7 @@ public class StateValidator implements Listener {
         ItemMeta enterMeta = enterItem.getItemMeta();
         if (enterMeta != null) {
             enterMeta.displayName(colorize("&a&l" + session.getConfig().getDisplayName()));
-            enterMeta.lore(List.of(colorize("&7クリックでアリーナへ入場")));
+            enterMeta.lore(List.of(colorize(mm().get("gui.arena-enter-lore"))));
             enterMeta.getPersistentDataContainer().set(
                     ARENA_ENTER_KEY, PersistentDataType.STRING, session.getSessionId());
             enterItem.setItemMeta(enterMeta);
@@ -112,13 +114,13 @@ public class StateValidator implements Listener {
     }
 
     private void openLeaveConfirmMenu(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 9, colorize("&c&l退出しますか？"));
+        Inventory gui = Bukkit.createInventory(null, 9, colorize(mm().get("gui.leave-confirm-title")));
 
         ItemStack yesItem = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta yesMeta = yesItem.getItemMeta();
         if (yesMeta != null) {
-            yesMeta.displayName(colorize("&a&lはい"));
-            yesMeta.lore(List.of(colorize("&75秒後に待機場所へ戻ります")));
+            yesMeta.displayName(colorize(mm().get("gui.leave-yes-name")));
+            yesMeta.lore(List.of(colorize(mm().get("gui.leave-yes-lore"))));
             yesMeta.getPersistentDataContainer().set(
                     LEAVE_CONFIRM_YES_KEY, PersistentDataType.BYTE, (byte) 1);
             yesItem.setItemMeta(yesMeta);
@@ -127,8 +129,8 @@ public class StateValidator implements Listener {
         ItemStack noItem = new ItemStack(Material.RED_CONCRETE);
         ItemMeta noMeta = noItem.getItemMeta();
         if (noMeta != null) {
-            noMeta.displayName(colorize("&c&lいいえ"));
-            noMeta.lore(List.of(colorize("&7キャンセル")));
+            noMeta.displayName(colorize(mm().get("gui.leave-no-name")));
+            noMeta.lore(List.of(colorize(mm().get("gui.leave-no-lore"))));
             noMeta.getPersistentDataContainer().set(
                     LEAVE_CONFIRM_NO_KEY, PersistentDataType.BYTE, (byte) 1);
             noItem.setItemMeta(noMeta);
@@ -141,7 +143,7 @@ public class StateValidator implements Listener {
 
     private void startLeaveCountdown(Player player) {
         cancelLeaveCountdown(player.getUniqueId());
-        player.sendMessage(colorize("&e[PvPF] &75秒後に待機場所へ戻ります..."));
+        player.sendMessage(colorize(mm().get("session.leave-countdown-start")));
 
         final int[] remaining = {5};
         int taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
@@ -166,10 +168,6 @@ public class StateValidator implements Listener {
         if (taskId != null) Bukkit.getScheduler().cancelTask(taskId);
     }
 
-    /**
-     * プレイヤーをゲームの待機場所（lobby）へ戻す。
-     * セッションからは退出せず、FREEPLAYのロビー待機状態に戻る。
-     */
     private void returnToWaitingArea(Player player) {
         GameSession session = plugin.getSessionManager().getSessionByPlayer(player);
         if (session == null) return;
@@ -180,10 +178,9 @@ public class StateValidator implements Listener {
                 : plugin.getConfigManager().getGlobalLobby();
         if (waitingLoc != null) player.teleport(waitingLoc);
 
-        // 退出コンパスを外してメニューコンパスに戻す
         player.getInventory().setItem(8, null);
         GameSession.giveMenuCompass(player);
-        player.sendMessage(colorize("&b[PvPF] &a待機場所へ戻りました。"));
+        player.sendMessage(colorize(mm().get("session.returned-to-lobby")));
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -219,7 +216,7 @@ public class StateValidator implements Listener {
             if (pdc.has(LEAVE_CONFIRM_NO_KEY, PersistentDataType.BYTE)) {
                 event.setCancelled(true);
                 player.closeInventory();
-                player.sendMessage(colorize("&7[PvPF] 退出をキャンセルしました。"));
+                player.sendMessage(colorize(mm().get("session.leave-cancelled")));
                 return;
             }
         }
@@ -247,22 +244,26 @@ public class StateValidator implements Listener {
         if (!(session instanceof YamlGameSession ys)) return;
 
         if ("FREEPLAY".equals(ys.getConfig().getMode())) {
-            // FREEPLAY: 即リスポーン（PlayerRespawnEvent でlobbyへTP）
+            // FREEPLAY: 即リスポーン
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
                 if (victim.isOnline() && victim.isDead()) victim.spigot().respawn();
             }, 1L);
         } else if (ys.getConfig().isRespawnEnabled()) {
+            // 通常モード（respawn=true）: 設定された遅延でリスポーン
             long delayTicks = Math.max(1L, (long) ys.getConfig().getRespawnDelay() * 20L);
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
                 if (victim.isOnline() && victim.isDead()) victim.spigot().respawn();
             }, delayTicks);
         }
+        // LAST_STANDING: respawnEnabled=false のため、ここではリスポーンしない。
+        // makeSpectator() 内で1tick後に強制リスポーンがスケジュールされる。
     }
 
     /**
-     * リスポーン後のテレポート処理。
-     * FREEPLAYの場合はゲームの待機場所（lobby）へ、
-     * 通常モードの場合はアリーナのスポーンへテレポートする。
+     * リスポーン後の処理。
+     * - FREEPLAY: lobby へ
+     * - LAST_STANDING スペクテイター: アリーナ内にTPしてSPECTATORモードに
+     * - 通常モード（FFA/TDM）: アリーナのスポーンへTP、体力回復、キット再配布
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onRespawn(PlayerRespawnEvent event) {
@@ -273,25 +274,51 @@ public class StateValidator implements Listener {
         if (!(session instanceof YamlGameSession ys)) return;
 
         if ("FREEPLAY".equals(ys.getConfig().getMode())) {
-            // FREEPLAYはlobby（待機場所）へ戻す
+            // FREEPLAYはlobbyへ戻す
             Location waitingLoc = ys.getConfig().getLobby() != null
                     ? ys.getConfig().getLobby().toBukkitLocation()
                     : plugin.getConfigManager().getGlobalLobby();
-            if (waitingLoc != null) {
-                event.setRespawnLocation(waitingLoc);
-            }
-            // 退出コンパスを外してメニューコンパスに戻す（1tick後に実行）
+            if (waitingLoc != null) event.setRespawnLocation(waitingLoc);
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
                 if (player.isOnline()) {
                     player.getInventory().setItem(8, null);
                     GameSession.giveMenuCompass(player);
                 }
             }, 1L);
-        } else {
-            // 通常モードはアリーナのスポーンへ
-            Location spawn = session.nextUniqueSpawn();
-            if (spawn != null) event.setRespawnLocation(spawn);
+            return;
         }
+
+        // [Fix Bug①] LAST_STANDING スペクテイター: アリーナ内観戦
+        if ("LAST_STANDING".equals(ys.getConfig().getMode()) && ys.isSpectator(player)) {
+            Location arenaSpawn = session.nextUniqueSpawn();
+            if (arenaSpawn != null) event.setRespawnLocation(arenaSpawn);
+            // 1tick後にSPECTATORモードを設定（リスポーン完了後でないと反映されない）
+            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                if (player.isOnline()) {
+                    player.setGameMode(org.bukkit.GameMode.SPECTATOR);
+                }
+            }, 1L);
+            return;
+        }
+
+        // 通常モード（FFA / TDM）: アリーナスポーンへTP
+        Location spawn = session.nextUniqueSpawn();
+        if (spawn != null) event.setRespawnLocation(spawn);
+
+        // [Fix] 1tick後に体力回復・キット再配布・TDMヘルメット再装備
+        Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            GameSession.healPlayer(player);
+
+            // リスポーンキット再配布
+            String kitId = ys.getConfig().getRespawnKitId();
+            if (kitId != null) plugin.getKitManager().give(player, kitId);
+
+            // TDM: チームヘルメット再装備（キット配布で上書きされた場合も対応）
+            if ("TDM".equals(ys.getConfig().getMode())) {
+                ys.giveTeamHelmet(player);
+            }
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -310,13 +337,40 @@ public class StateValidator implements Listener {
         if (!allow) event.setCancelled(true);
     }
 
+    /**
+     * [Fix TDM] フレンドリーファイア無効化を追加。
+     * 直接攻撃・飛び道具（矢・雪玉等）の両方に対応。
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) return;
-        if (!(event.getDamager() instanceof Player)) return;
+
         GameSession session = plugin.getSessionManager().getSessionByPlayer(victim);
         if (session == null) return;
-        if (session.getState() != GameState.ACTIVE) event.setCancelled(true);
+
+        if (session.getState() != GameState.ACTIVE) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 攻撃者を特定（直接攻撃 or 飛び道具）
+        Player attacker = null;
+        Entity damager = event.getDamager();
+        if (damager instanceof Player p) {
+            attacker = p;
+        } else if (damager instanceof Projectile proj
+                && proj.getShooter() instanceof Player p) {
+            attacker = p;
+        }
+
+        // TDM: フレンドリーファイア無効
+        if (attacker != null
+                && session instanceof YamlGameSession ys
+                && "TDM".equals(ys.getConfig().getMode())
+                && !ys.getConfig().isFriendlyFire()
+                && ys.isSameTeam(attacker, victim)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -348,7 +402,7 @@ public class StateValidator implements Listener {
             if (!session.getArena().isInBounds(event.getTo())) {
                 cancelLeaveCountdown(player.getUniqueId());
                 plugin.getSessionManager().leaveSession(player);
-                player.sendMessage(colorize("&c[PvPF] アリーナ境界外に出たため、ゲームから除外されました。"));
+                player.sendMessage(colorize(mm().get("session.arena-out-of-bounds")));
             }
         }
     }

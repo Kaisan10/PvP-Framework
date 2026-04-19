@@ -1,5 +1,9 @@
 # PvPFramework グローバル設定
 
+# 言語設定（messages/<locale>.yml を読み込む）
+# 利用可能: ja_JP, en_US
+locale: ja_JP
+
 # world: を省略した際に使われるデフォルトワールド
 default-world: world
 

@@ -1,0 +1,160 @@
+# PvPFramework Message Configuration - English (en_US)
+# Edit this file to customize all plugin messages.
+# Color codes (&a~&f) are supported.
+
+prefix: "§b[PvPF] §r"
+
+command:
+  no-permission: "§cYou do not have permission to do that."
+  player-only: "§cOnly players can use this command."
+
+  join:
+    usage: "Usage: /pvpf join <game-id>"
+    not-in-game: "§cYou are not currently in a game."
+    available-header: "§eAvailable games:"
+    success: "§aJoined §f{gameId}§a!"
+    success-freeplay: "§aJoined the lobby of §f{displayName}§a!"
+    success-freeplay-hint: "§7Right-click the compass to enter the arena."
+    cb-usage: "§7Command block usage: /pvpf join <player> <game-id>"
+    cb-player-not-found: "§cPlayer not found: {player}"
+
+  leave:
+    not-in-game: "§cYou are not currently in a game."
+    returned-to-game-lobby: "§aReturned to the waiting area. Use §f/pvpf leave §aagain to exit to the lobby."
+    left: "§aYou have left the game."
+    player-only: "§cOnly players can use this command."
+
+  reload:
+    start: "Reloading..."
+    done: "§aReload complete. kits={kits} arenas={arenas} games={games}"
+
+  game:
+    usage: "Usage: /pvpf game <list|start|stop|status>"
+    unknown-sub: "Unknown subcommand: {sub}"
+    list:
+      header-games: "§eRegistered games ({count}):"
+      header-sessions: "§eActive sessions ({count}):"
+    start:
+      usage: "Usage: /pvpf game start <game-id>"
+      not-found: "§cGame not found: {gameId}"
+      already-exists: "§cA waiting session for {gameId} already exists."
+      success: "§aSession started: §f{sessionId}"
+      hint: "§7Join with: §f/pvpf join {gameId}"
+    stop:
+      usage: "Usage: /pvpf game stop <session-id>"
+      not-found: "§cSession not found: {sessionId}"
+      success: "§aStopped session: {sessionId}"
+      force-reason: "Forcibly stopped by admin"
+    status:
+      usage: "Usage: /pvpf game status <session-id>"
+      not-found: "§cSession not found: {sessionId}"
+      header: "§eSession: {sessionId}"
+      line-state: "  State: §f{state}"
+      line-game-id: "  Game ID: §f{gameId}"
+      line-player-count: "  Players: §f{count}"
+      line-elapsed: "  Elapsed: §f{elapsed}s"
+      line-mode: "  Mode: §f{mode}"
+
+  template:
+    usage: "Usage: /pvpf template <list|copy>"
+    unknown-sub: "Unknown subcommand: {sub}"
+    list:
+      empty: "§cNo templates found."
+      header: "§eTemplates ({count}):"
+    copy:
+      usage: "Usage: /pvpf template copy <template-name> <new-game-id>"
+      invalid-id: "§cGame ID may only contain letters, numbers, _ and -."
+      already-exists: "§cgames/{gameId}.yml already exists."
+      success: "§aCreated: §fgames/{gameId}.yml"
+      hint: "§7After editing, reload with §f/pvpf reload§7."
+      failed: "§cCopy failed. Check the template name with §f/pvpf template list§c."
+
+  npc:
+    no-plugin: "§cFancyNpcs is not installed on this server."
+    usage: "Usage: /pvpf npc <create|createlobby|delete|teleport>"
+    player-only: "§cOnly players can use this command (location required)."
+    name-empty: "§cPlease specify an NPC name."
+    unknown-sub: "Unknown subcommand: {sub}"
+    create:
+      usage: "Usage: /pvpf npc create <name> <game-id>"
+      success: "§aCreated NPC §f{name}§a."
+      linked: "§aLinked to game §f{gameId}§a."
+      hint: "§7Use §f/npc skin <uid> <name|url> §7to set skin / equipment."
+    createlobby:
+      usage: "Usage: /pvpf npc createlobby <name>"
+      success: "§aCreated lobby NPC §f{name}§a."
+      hint: "§7Clicking it will teleport players to the §fglobal-lobby§7."
+    delete:
+      usage: "Usage: /pvpf npc delete <name>"
+      success: "§aDeleted NPC §f{name}§a (oldest removed if duplicates exist)."
+      not-found: "§cNPC §f{name} §cnot found."
+    teleport:
+      usage: "Usage: /pvpf npc teleport <name>"
+      success: "§aTeleported to NPC §f{name}§a."
+      not-found: "§cNPC §f{name} §cnot found."
+
+  help:
+    header: "§eCommands:"
+    join: "  §f/pvpf join <game-id> §7- Join a game"
+    leave: "  §f/pvpf leave §7- Leave the game (arena→lobby, 2 steps)"
+    reload: "  §f/pvpf reload §7- Reload configuration"
+    game-list: "  §f/pvpf game list §7- List games and sessions"
+    game-start: "  §f/pvpf game start <id> §7- Start a game"
+    game-stop: "  §f/pvpf game stop <session> §7- Force stop a session"
+    game-status: "  §f/pvpf game status <session> §7- Show session details"
+    template-list: "  §f/pvpf template list §7- List templates"
+    template-copy: "  §f/pvpf template copy <tmpl> <id> §7- Copy a template"
+    npc-create: "  §f/pvpf npc create <name> <game-id> §7- Create game join NPC"
+    npc-createlobby: "  §f/pvpf npc createlobby <name> §7- Create lobby return NPC"
+    npc-delete: "  §f/pvpf npc delete <name> §7- Delete an NPC (oldest if duplicates)"
+    npc-teleport: "  §f/pvpf npc teleport <name> §7- Teleport to an NPC"
+    npc-note: "  §7※ Use §f/npc §7for skin and equipment settings."
+
+  pf:
+    usage: "§7Usage: §f/pf j <game-id>"
+    player-only: "§cOnly players can use this command."
+    no-permission: "§cYou do not have permission to do that."
+    no-games: "§cNo games are currently available."
+    games-header: "§eAvailable games:"
+    joined: "§aJoined §f{gameId}§a!"
+
+session:
+  leave-countdown-already: "§e[PvPF] Leave countdown is already in progress..."
+  leave-countdown-start: "§e[PvPF] §7Returning to the waiting area in 5 seconds..."
+  returned-to-lobby: "§b[PvPF] §aReturned to the waiting area."
+  arena-out-of-bounds: "§c[PvPF] You left the arena boundary and were removed from the game."
+  leave-cancelled: "§7[PvPF] Leave cancelled."
+  became-spectator: "§c§lYou have been eliminated. You are now spectating."
+  arena-entered: "§aEntered the arena of §f{displayName}§a!"
+  tie: "Draw"
+  all-left: "All players left"
+  time-up: "Time's up"
+  already-in-game: "§cYou are already in another game. Please leave before joining."
+  session-not-found: "§cSession not found: {sessionId}"
+  join-failed: "§cCould not join (full or game in progress)."
+
+
+gui:
+  game-menu-title: "§b§lGame Menu"
+  leave-confirm-title: "§c§lLeave game?"
+  leave-yes-name: "§a§lYes"
+  leave-yes-lore: "§7Returns to waiting area in 5 seconds"
+  leave-no-name: "§c§lNo"
+  leave-no-lore: "§7Cancel"
+  arena-enter-lore: "§7Click to enter the arena"
+  lobby-leave-name: "§c§lLeave Game"
+  lobby-leave-lore: "§7Click to return to lobby"
+  lobby-status-countdown: "§eCountdown in progress"
+  lobby-status-waiting: "§7Need §f{count} more §7player(s) to start"
+  lobby-status-ready: "§aReady to start"
+  lobby-info-lore-players: "§7Players: §f{current} / {max}"
+  lobby-info-lore-state: "§7State: {status}"
+
+item:
+  menu-compass-name: "§b§lGame Menu"
+  leave-compass-name: "§c§lLeave"
+
+npc:
+  already-in-game: "§cYou are already in a game. Use §f/pvpf leave §cto exit before joining."
+  no-global-lobby: "§cGlobal lobby is not configured."
+  returned-to-lobby: "§aReturned to the lobby."

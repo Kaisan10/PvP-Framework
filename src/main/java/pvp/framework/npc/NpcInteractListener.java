@@ -65,7 +65,7 @@ public class NpcInteractListener implements Listener {
             }
 
             // 上記以外（別ゲーム参加中、アリーナにいる、等）はエラー
-            player.sendMessage(PREFIX + "§c既にゲームに参加中です。§f/pvpf leave §cで退出してから参加してください。");
+            player.sendMessage(plugin.getMessageManager().getPrefixed("npc.already-in-game"));
             return;
         }
 
@@ -84,11 +84,11 @@ public class NpcInteractListener implements Listener {
 
         Location globalLobby = plugin.getConfigManager().getGlobalLobby();
         if (globalLobby == null) {
-            player.sendMessage(PREFIX + "§cグローバルロビーが設定されていません。");
+            player.sendMessage(plugin.getMessageManager().getPrefixed("npc.no-global-lobby"));
             return;
         }
 
         player.teleport(globalLobby);
-        player.sendMessage(PREFIX + "§aロビーへ戻りました。");
+        player.sendMessage(plugin.getMessageManager().getPrefixed("npc.returned-to-lobby"));
     }
 }

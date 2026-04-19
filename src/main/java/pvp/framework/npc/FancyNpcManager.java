@@ -156,7 +156,7 @@ public class FancyNpcManager {
         if (!isFancyNpcsAvailable()) return false;
 
         if (plugin.getGameLoader().getConfig(gameId) == null) {
-            creator.sendMessage("§c[PvPF] ゲームが見つかりません: " + gameId);
+            creator.sendMessage(plugin.getMessageManager().getPrefixed("command.game.start.not-found", "gameId", gameId));
             return false;
         }
 

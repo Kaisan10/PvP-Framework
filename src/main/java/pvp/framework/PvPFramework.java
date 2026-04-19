@@ -6,6 +6,7 @@ import pvp.framework.command.PvpfCommand;
 import pvp.framework.config.ConfigManager;
 import pvp.framework.game.GameLoader;
 import pvp.framework.gui.LobbyMenuListener;
+import pvp.framework.i18n.MessageManager;
 import pvp.framework.kit.KitManager;
 import pvp.framework.mode.KillListener;
 import pvp.framework.mode.ModeEngine;
@@ -23,6 +24,7 @@ public class PvPFramework extends JavaPlugin {
     private static PvPFramework instance;
 
     private ConfigManager configManager;
+    private MessageManager messageManager;
     private KitManager kitManager;
     private ArenaManager arenaManager;
     private GameLoader gameLoader;
@@ -40,6 +42,9 @@ public class PvPFramework extends JavaPlugin {
 
         configManager  = new ConfigManager(this);
         configManager.load();
+
+        messageManager = new MessageManager(this);
+        messageManager.reload();
 
         kitManager = new KitManager(this);
         kitManager.load();
@@ -98,4 +103,5 @@ public class PvPFramework extends JavaPlugin {
     public ScoreboardManager getScoreboardManager() { return scoreboardManager; }
     public FancyNpcManager   getFancyNpcManager()   { return fancyNpcManager; }
     public LobbyMenuListener getLobbyMenuListener() { return lobbyMenuListener; }
+    public MessageManager    getMessageManager()    { return messageManager; }
 }
